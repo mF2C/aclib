@@ -28,15 +28,15 @@ ENV CALIB_PORT="46080"
 # Port number for the local CAU-Client
 ENV CAUCLIENT_PORT= "46065"
 # create working folder
-RUN mkdir /var/app
+RUN mkdir /var/app/calib
 #for sharing owner Agent's certificate and key 
 RUN mkdir /pkidata
 VOLUME /pkidata
 # copy jar to working lib
-ADD ca-lib.jar /var/app/ca-lib.jar
-WORKDIR /var/app
+ADD target/mf2c-aclib-jar-with-dependencies.jar /var/app/calib/mf2c-aclib-jar-with-dependencies.jar
+WORKDIR /var/app/calib
 # Default port used for CA-LIB
 EXPOSE 46080
 #run the application
-CMD exec java -jar ca-lib.jar ${CALIB_IP} ${CALIB_PORT} ${CAUCLIENT_PORT}
+CMD exec java -jar mf2c-aclib-jar-with-dependencies.jar ${CALIB_IP} ${CALIB_PORT} ${CAUCLIENT_PORT}
 
