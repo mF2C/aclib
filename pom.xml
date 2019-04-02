@@ -1,0 +1,126 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>eu.mf2c.stfc</groupId>
+	<artifactId>aclib</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>aclib</name>
+	<description>Cryptography lib for securing mF2C messages.</description>
+	<url>http://www.mf2c-project.eu/</url>
+	<organization>
+		<name>UKRI-STFC</name>
+		<url>https://stfc.ukri.org/</url>
+	</organization>
+	<licenses>
+		<license>
+			<name>Apache Public License V2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0/</url>
+			<distribution>manual</distribution>
+			<comments>A free software license written by the Apache Software Foundation.</comments>
+		</license>
+	</licenses>
+	<developers>
+		<developer>
+			<id>syc17</id>
+			<name>Shirley Crompton</name>
+			<email>shirley.crompton@stfc.ac.uk</email>
+			<organization>UKRI Science and Technology Facilities Council</organization>
+			<organizationUrl>http://www.stfc.ac.uk</organizationUrl>
+			<roles>
+				<role>developer</role>
+			</roles>
+			<timezone>Europe/London</timezone>
+		</developer>
+	</developers>
+	<dependencies>
+		<dependency>
+			<groupId>org.bitbucket.b_c</groupId>
+			<artifactId>jose4j</artifactId>
+			<version>0.6.5</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-log4j12 -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>1.7.26</version>
+		</dependency>
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>1.2.16</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/junit/junit -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.12</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-assembly-plugin 
+		<dependency>
+			<groupId>org.apache.maven.plugins</groupId>
+			<artifactId>maven-assembly-plugin</artifactId>
+			<version>3.1.1</version>
+		</dependency>-->
+	</dependencies>
+	<build>		
+		<finalName>mf2c-aclib</finalName>
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>generate-javadoc</id>
+						<!--<phase>generate-resources</phase> -->
+						<!-- bind to the generate-resources phase -->
+						<goals>
+							<goal>javadoc</goal>
+						</goals>
+						<configuration>
+							<links>
+								<!-- link to java source code -->
+								<link>http://docs.oracle.com/javase/8/docs/api/</link>
+							</links>
+							<show>private</show>
+							<reportOutputDirectory>${project.build.directory}</reportOutputDirectory>
+							<!-- <reportOutputDirectory>>${project.basedir}/doc</reportOutputDirectory>
+							<destDir>javadoc</destDir>-->
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>make-assembly</id>
+						<phase>package</phase> <!-- bind to the packaging phase -->
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<descriptorRefs>
+								<descriptorRef>jar-with-dependencies</descriptorRef>
+							</descriptorRefs>
+							<archive>
+								<manifest>
+									<addClasspath>true</addClasspath>
+									<mainClass>eu.mf2c.security.ac.tcp.ACLibServer</mainClass>
+								</manifest>
+							</archive>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

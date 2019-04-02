@@ -1,0 +1,24 @@
+-classpath
+'C:/Users/syc1703/.m2/repository/org/slf4j/slf4j-log4j12/1.7.26/slf4j-log4j12-1.7.26.jar;C:/Users/syc1703/.m2/repository/log4j/log4j/1.2.16/log4j-1.2.16.jar;C:/Users/syc1703/.m2/repository/org/bitbucket/b_c/jose4j/0.6.5/jose4j-0.6.5.jar;C:/Users/syc1703/.m2/repository/org/slf4j/slf4j-api/1.7.21/slf4j-api-1.7.21.jar'
+-encoding
+'Cp1252'
+-protected
+-sourcepath
+'E:/git-mF2C/aclib/src/main/java'
+-author
+-bottom
+'Copyright &#169; 2019 <a href="https://stfc.ukri.org/">UKRI-STFC</a>. All rights reserved.'
+-charset
+'UTF-8'
+-d
+'E:/git-mF2C/aclib/target/site/apidocs'
+-docencoding
+'UTF-8'
+-doctitle
+'aclib 0.0.1-SNAPSHOT API'
+-linkoffline
+'https://docs.oracle.com/javase/8/docs/api' 'E:/git-mF2C/aclib/target/javadoc-bundle-options'
+-use
+-version
+-windowtitle
+'aclib 0.0.1-SNAPSHOT API'

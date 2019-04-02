@@ -1,0 +1,17 @@
+# Eclipse
+.classpath
+.project
+.settings/
+
+#output
+target/archive-tmp/
+target/classes/
+target/generated-sources/
+target/javadoc-bundle-options/
+target/maven-archiver/
+target/test-classes
+#log
+target/*.log
+*.log
+
+/target/
