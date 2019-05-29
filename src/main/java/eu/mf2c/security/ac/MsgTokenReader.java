@@ -15,7 +15,6 @@
  */
 package eu.mf2c.security.ac;
 
-import java.security.InvalidKeyException;
 import java.util.List;
 import java.util.Map;
 
@@ -23,30 +22,35 @@ import org.apache.log4j.Logger;
 import org.jose4j.base64url.Base64Url;
 import org.jose4j.json.JsonUtil;
 import org.jose4j.jwa.AlgorithmConstraints;
+import org.jose4j.jwa.AlgorithmConstraints.ConstraintType;
 import org.jose4j.jwa.AlgorithmFactory;
 import org.jose4j.jwa.AlgorithmFactoryFactory;
-import org.jose4j.jwa.AlgorithmConstraints.ConstraintType;
 import org.jose4j.jwe.ContentEncryptionAlgorithmIdentifiers;
 import org.jose4j.jwe.JsonWebEncryption;
 import org.jose4j.jwe.KeyManagementAlgorithmIdentifiers;
 import org.jose4j.jws.AlgorithmIdentifiers;
 import org.jose4j.jws.JsonWebSignature;
-import org.jose4j.jwx.CompactSerialization;
+import org.jose4j.jwt.JwtClaims;
+import org.jose4j.jwt.MalformedClaimException;
+import org.jose4j.jwt.consumer.ErrorCodes;
+import org.jose4j.jwt.consumer.InvalidJwtException;
+import org.jose4j.jwt.consumer.JwtConsumer;
+import org.jose4j.jwt.consumer.JwtConsumerBuilder;
+import org.jose4j.jwt.consumer.JwtContext;
 import org.jose4j.jwx.CompactSerializer;
-import org.jose4j.jwx.HeaderParameterNames;
 import org.jose4j.jwx.Headers;
-import org.jose4j.jwx.JsonWebStructure;
 import org.jose4j.lang.JoseException;
 import org.jose4j.lang.JsonHelp;
 import org.jose4j.lang.StringUtil;
 import org.jose4j.zip.CompressionAlgorithm;
 import org.jose4j.zip.CompressionAlgorithmIdentifiers;
 
-import eu.mf2c.security.ac.data.JsonJWE;
 import eu.mf2c.security.ac.data.Sender;
+import eu.mf2c.security.ac.exception.MsgTokenBuilderException;
 import eu.mf2c.security.ac.exception.MsgTokenReaderException;
 import eu.mf2c.security.ac.utility.AgentSingleton;
 import eu.mf2c.security.ac.utility.Security;
+import eu.mf2c.security.ac.utility.Type;
 
 /**
  * A general purpose consumer that takes in a {@link java.lang.String
@@ -56,158 +60,67 @@ import eu.mf2c.security.ac.utility.Security;
  * <p>
  * author Shirley Crompton email shirley.crompton@stfc.ac.uk org Data Science
  * and Technology Group, UKRI Science and Technology Council Created 21 Mar 2019
- * <p>
  */
 public class MsgTokenReader {
 	/** Message Logger */
 	protected Logger LOGGER = Logger.getLogger(MsgTokenReader.class);
 	/** Msg Token String */
 	private String tokenStr;
+	/** Token type attribute */
+	protected Type typ = null;
 	/** library version */
 	protected static String vers = "1.0";
 	/**
 	 * Constructor
 	 * @param token	the token String to process
-	 * @throws IllegalArgumentException if null or an empty String is received
+	 * @param typ	the token type
+	 * @throws IllegalArgumentException	if null or an empty String is received
 	 */
-	public MsgTokenReader(String token) throws IllegalArgumentException {
+	public MsgTokenReader(String token, Type typ) throws IllegalArgumentException {
 		if (token == null || token.isEmpty()) {
 			throw new IllegalArgumentException("Null//empty msg token string, cannot proceed!");
 		}
+		if (typ == null ) {
+			throw new IllegalArgumentException("token type must be defined!");
+		}
 		this.tokenStr = token;
+		this.typ = typ;
 	}
 	/**
-	 * Get the payload message from the token. For signed JWS and JWE, the integrity of the 
+	 * Get the payload message from the plain, JWS and JWE tokens or validate claims for signed
+	 * JWT token.  For signed JWS, JWT and JWE, the integrity of the 
 	 * token is verified before can be extracted.
 	 * <p>
-	 * @return the plaintext payload
+	 * @return the plaintext payload or OK for JWT if operation is successful
 	 * @throws MsgTokenReaderException	on processing errors
 	 */
-	public String getMessage() throws MsgTokenReaderException {
-
+	public String handleToken() throws MsgTokenReaderException {
+		//use type to determine token type 22 May 2019
 		String msg = null;
 		// determine what sort of token this is
-		if (this.tokenStr.startsWith("{\"protected")) {
-			//first check if this agent is a recipient
-			if(!isRecipient()) {
-				throw new MsgTokenReaderException("Agent is not an intended recipient of this JJWE!");
+		//if (this.tokenStr.startsWith("{\"protected")) {
+		switch(this.typ) {
+			case JWE : msg = handleJWE(); break;
+			case JWS : msg = handleJWS(); break;
+			case JWT : msg = handleJWT(); break;
+			case PLAIN : msg = handleUnsignedJWS(); break;
+		}		
+		/** The unwrapping key error is hidden in JOSE4j, the actual thrown error is Tag authen error
+		System.out.println("Error reading token: " + e.getMessage());
+		if(e.getMessage().contains("Unwrapping failed at ")) {
+			System.out.println("Unwrapping failed ! " );
+		} 
+		Throwable[] ts = e.getSuppressed();
+		System.out.println("Ts length : " + ts.length); = 0!
+		for(Throwable t : ts) {
+			System.out.println("t : " + t.getClass().getName());
+			if(t instanceof InvalidKeyException){
+				System.out.println("caught invalid key exception");
 			}
-			try {
-				// multi-recipient JWE
-				/**
-				 * same argument though, if someone just changed the lib version to stop us
-				 * from reading the token 
-				 
-				if(!isSupported(jjwe.getEncodedHeaders())) { 
-					throw new MsgTokenReaderException("Incompatible AC lib version. Cannot proceed"); 
-				}*/
-				Map<String, Object> params;
-				params = JsonUtil.parseJson(this.tokenStr);
-				String pHeaders = JsonHelp.getString(params, "protected");
-				LOGGER.debug("protected : " + pHeaders);
-				String iv = JsonHelp.getString(params, "iv");
-				LOGGER.debug("iv : " + iv);
-				String ciphertext = JsonHelp.getString(params,"ciphertext");
-				LOGGER.debug("ciphertext : " + ciphertext);
-				String tag = JsonHelp.getString(params,"tag");
-				LOGGER.debug("tag : " + tag);
-				//Extract the per-recipient headers
-				@SuppressWarnings("unchecked")
-				List<Object> recs = (List<Object>) params.get("recipients");
-				String encrypted_key = null;
-				for(Object r : recs) {
-					encrypted_key = this.getEncryptedKey(r);
-					if(encrypted_key != null) {
-						break;
-					}
-				}
-				if(encrypted_key == null) {
-					throw new MsgTokenReaderException("JJWE: failed to find encrypted_key!");
-				}
-				String cs = CompactSerializer.serialize(pHeaders, encrypted_key, iv, ciphertext, tag);
-				LOGGER.debug("created token string: " + (cs == null ? "null" : cs));
-				//
-				JsonWebEncryption jwe = this.getJWE(cs);
-				jwe.setKey(AgentSingleton.getInstance().getJwk().getPrivateKey());
-				//get payload, this includes the verification, JWE handles compression directly
-				msg = jwe.getPayload();	
-			} catch (Exception e) {
-				throw new MsgTokenReaderException(e);
-			}
-		} else {
-			// now we got compact serialization: either JWE or JWS (signed/unsigned)
-			try {
-				String[] parts = CompactSerializer.deserialize(this.tokenStr);
-				if (parts.length == JsonWebEncryption.COMPACT_SERIALIZATION_PARTS) {
-					// 5 parts
-					JsonWebEncryption jwe = this.getJWE(this.tokenStr);
-					// set management key to decrypt encrypted_key
-					jwe.setKey(AgentSingleton.getInstance().getJwk().getPrivateKey());
-					// get the encrypted payload, this handles the decompression and verifies 
-					// the authentication tag. We get an integrity exception if the
-					// check fails
-					msg = jwe.getPayload();
-					// end single recipient JWE
-				} else if (parts.length == JsonWebSignature.COMPACT_SERIALIZATION_PARTS) {
-					// 3 parts
-					JsonWebSignature jws = new JsonWebSignature();
-					// check if it is signed or unsigned
-					if (parts[2].isEmpty()) {
-						// unsigned
-						jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.NONE);// flag unsecured JWS alg:none
-						jws.setAlgorithmConstraints(AlgorithmConstraints.ALLOW_ONLY_NONE);
-						jws.setCompactSerialization(this.tokenStr);
-						//
-						if (this.decompress(jws.getHeaders())) {
-							msg = StringUtil.newStringUtf8(this.decompress(jws.getPayloadBytes()));
-						} else {
-							msg = jws.getPayload();
-						}
-						// end unsigned JWS
-					} else {
-						// signed JWS
-						jws.setAlgorithmConstraints(new AlgorithmConstraints(ConstraintType.WHITELIST,
-								AlgorithmIdentifiers.RSA_USING_SHA256));
-						jws.setCompactSerialization(this.tokenStr);
-						Sender sender = new Sender(jws.getHeaders().getStringHeaderValue("mf2c-sender"));
-						jws.setKey(sender.getJwk().getKey());
-						// Check the signature
-						if (!jws.verifySignature()) {
-							throw new MsgTokenReaderException("Token signature is invalid!");
-						}
-						// OK, safe to go ahead and get payload
-						if (this.decompress(jws.getHeaders())) {
-							msg = StringUtil.newStringUtf8(this.decompress(jws.getPayloadBytes()));
-						} else {
-							msg = jws.getPayload();
-						}
-					} // end signed JWS
-				} else {
-					// compact serialisation token with incorrect parts count
-					throw new JoseException("Invalid JOSE Compact Serialization. Expecting either "
-							+ JsonWebSignature.COMPACT_SERIALIZATION_PARTS + " or "
-							+ JsonWebEncryption.COMPACT_SERIALIZATION_PARTS
-							+ " parts for JWS or JWE respectively but was " + parts.length + ".");
-				}
-			} catch (Exception e) {
-				/** The unwrapping key error is hidden in JOSE4j, the actual thrown error is Tag authent error
-				System.out.println("Error reading token: " + e.getMessage());
-				if(e.getMessage().contains("Unwrapping failed at ")) {
-					System.out.println("Unwrapping failed ! " );
-				} 
-				Throwable[] ts = e.getSuppressed();
-				System.out.println("Ts length : " + ts.length); = 0!
-				for(Throwable t : ts) {
-					System.out.println("t : " + t.getClass().getName());
-					if(t instanceof InvalidKeyException){
-						System.out.println("caught invalid key exception");
-					}
-				}*/
-				
-				throw new MsgTokenReaderException(e);
-				//downstream check for org.jose4j.lang.IntegrityException
-			}
-		} // end if JJwe or others
+		}*/
+		if(msg == null) {
+			throw new MsgTokenReaderException("Failed to process the token!  Unknown error!");
+		}
 		return msg;
 	}
 
@@ -378,7 +291,204 @@ public class MsgTokenReader {
 		}else
 			return false;		
 	}
-
+	/**
+	 * Handle JWE, verify the authenticity and decrypt the payload.
+	 * <p>
+	 * @return	the plaintext payload
+	 * @throws MsgTokenReaderException  on procesing errors, including verification and key errors.
+	 */
+	public String handleJWE() throws MsgTokenReaderException {
+		String payload = null;
+		try {
+			if (this.tokenStr.startsWith("{\"protected")) { //multi-recipient
+				//first check if this agent is a recipient
+				if(!isRecipient()) {
+					throw new Exception("Agent is not an intended recipient of this JJWE!");
+				}
+				/**
+				 * same argument though, if someone just changed the lib version to stop us
+				 * from reading the token 
+				 
+				if(!isSupported(jjwe.getEncodedHeaders())) { 
+					throw new MsgTokenReaderException("Incompatible AC lib version. Cannot proceed"); 
+				}*/
+				Map<String, Object> params;
+				params = JsonUtil.parseJson(this.tokenStr);
+				String pHeaders = JsonHelp.getString(params, "protected");
+				LOGGER.debug("protected : " + pHeaders);
+				String iv = JsonHelp.getString(params, "iv");
+				LOGGER.debug("iv : " + iv);
+				String ciphertext = JsonHelp.getString(params,"ciphertext");
+				LOGGER.debug("ciphertext : " + ciphertext);
+				String tag = JsonHelp.getString(params,"tag");
+				LOGGER.debug("tag : " + tag);
+				//Extract the per-recipient headers
+				@SuppressWarnings("unchecked")
+				List<Object> recs = (List<Object>) params.get("recipients");
+				String encrypted_key = null;
+				for(Object r : recs) {
+					encrypted_key = this.getEncryptedKey(r);
+					if(encrypted_key != null) {
+						break;
+					}
+				}
+				if(encrypted_key == null) {
+					throw new MsgTokenReaderException("JJWE: failed to find encrypted_key!");
+				}
+				String cs = CompactSerializer.serialize(pHeaders, encrypted_key, iv, ciphertext, tag);
+				LOGGER.debug("created token string: " + (cs == null ? "null" : cs));
+				//
+				JsonWebEncryption jwe = this.getJWE(cs);
+				jwe.setKey(AgentSingleton.getInstance().getJwk().getPrivateKey());
+				//get payload, this includes the verification, JWE handles compression directly
+				payload = jwe.getPayload();	
+			}else {//compact serialisation for single recipient
+				String[] parts = CompactSerializer.deserialize(this.tokenStr);				
+				// must have 5 parts
+				if(parts.length != JsonWebEncryption.COMPACT_SERIALIZATION_PARTS) {
+					throw new Exception("Compact serailisation JWE must have 5 separate parts!"); 
+				}
+				JsonWebEncryption jwe = this.getJWE(this.tokenStr);
+				// set management key to decrypt encrypted_key
+				jwe.setKey(AgentSingleton.getInstance().getJwk().getPrivateKey());
+				// get the encrypted payload, this handles the decompression and verifies 
+				// the authentication tag. We get an integrity exception if the check fails
+				payload = jwe.getPayload();
+				// end single recipient JWE
+			}
+		}catch (Exception e) {
+			throw new MsgTokenReaderException(e);
+			//downstream check for org.jose4j.lang.IntegrityException
+		}
+		return payload;
+	}
+	/**
+	 * Handle JWS, verify the signature and get the payload.
+	 * <p>
+	 * @return	the plaintext payload
+	 * @throws MsgTokenReaderException  on processing and signature errors.
+	 */
+	public String handleJWS() throws MsgTokenReaderException {
+		String payload = null;
+		try {
+			JsonWebSignature jws = new JsonWebSignature();
+			jws.setAlgorithmConstraints(new AlgorithmConstraints(ConstraintType.WHITELIST,
+					AlgorithmIdentifiers.RSA_USING_SHA256));
+			jws.setCompactSerialization(this.tokenStr);
+			Sender sender = new Sender(jws.getHeaders().getStringHeaderValue("mf2c-sender"));
+			jws.setKey(sender.getJwk().getKey());
+			// Check the signature
+			if (!jws.verifySignature()) {
+				throw new Exception("Token signature is invalid!");
+			}
+			// OK, safe to go ahead and get payload
+			if (this.decompress(jws.getHeaders())) {
+				payload = StringUtil.newStringUtf8(this.decompress(jws.getPayloadBytes()));
+			} else {
+				payload = jws.getPayload();
+			}	
+		}catch (Exception e) {
+			throw new MsgTokenReaderException(e);
+			//downstream check for org.jose4j.lang.IntegrityException
+		}
+		return payload;
+	}
+	
+	/**
+	 * Handle unsigned JWS, get the payload message.
+	 * <p>
+	 * @return	the plaintext payload
+	 * @throws MsgTokenReaderException  on processing errors.
+	 */
+	String handleUnsignedJWS() throws MsgTokenReaderException {
+		String payload = null;
+		JsonWebSignature jws = new JsonWebSignature();
+		try {
+			jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.NONE);// flag unsecured JWS alg:none
+			jws.setAlgorithmConstraints(AlgorithmConstraints.ALLOW_ONLY_NONE);
+			jws.setCompactSerialization(this.tokenStr);
+			//
+			if (this.decompress(jws.getHeaders())) {
+				payload = StringUtil.newStringUtf8(this.decompress(jws.getPayloadBytes()));
+			} else {
+				payload = jws.getPayload();
+			}
+		}catch (Exception e) {
+			throw new MsgTokenReaderException(e);
+			//downstream check for org.jose4j.lang.IntegrityException
+		}
+		return payload;
+	}
+	/**
+	 * Handle JWT, verify the signature and the JWT claims.
+	 * <p>
+	 * @return	OK if JWT claims are authenticated
+	 * @throws MsgTokenReaderException  on processing and claims errors.
+	 */
+	String handleJWT() throws MsgTokenReaderException {
+		String rc = null;
+		try {
+			// Build a JwtConsumer that doesn't check signatures or do any validation.
+		    JwtConsumer firstPassJwtConsumer = new JwtConsumerBuilder()
+		            .setSkipAllValidators()
+		            .setDisableRequireSignature()
+		            .setSkipSignatureVerification()
+		            .build();
+		    //The first JwtConsumer is basically just used to parse the JWT into a JwtContext object.
+		    JwtContext jwtContext = firstPassJwtConsumer.process(this.tokenStr);
+		    // Get the issuer to look up the key, this would be the issuing Agent's deviceID
+		    String issuer = jwtContext.getJwtClaims().getIssuer();
+			Sender sender = new Sender(issuer);
+			//second pass JwtConsumer, authorisation is done by CIMI, we just to authenticate the ID
+			//this JwtConsumer is set up to verify the signature and validate the claims.
+			JwtConsumer jwtConsumer = new JwtConsumerBuilder().setRequireExpirationTime() 
+					.setAllowedClockSkewInSeconds(30) // add some leeway in validating time based claims to account for
+					// clock skew
+					.setExpectedIssuer(issuer) // whom the JWT needs to have been issued by
+					.setExpectedAudience(AgentSingleton.getInstance().getDid()) // get this Agent's deviceId
+					.setVerificationKey(sender.getJwk().getKey()) // verify the signature with the public key
+					.setJwsAlgorithmConstraints( // only allow the expected signature algorithm(s) in the given context
+							new AlgorithmConstraints(ConstraintType.WHITELIST, // which is only RS256 here
+									AlgorithmIdentifiers.RSA_USING_SHA256))
+					.build(); // create the JwtConsumer instance		
+			// Validate the JWT Claims, reuse the same context to avoid redundant parsing			
+			jwtConsumer.processContext(jwtContext);
+			LOGGER.debug("JWT validation succeeded! ");
+			rc = "OK";
+			//
+		} catch (InvalidJwtException e) {
+			// InvalidJwtException will be thrown, if the JWT failed processing or
+			// validation in anyway.
+			LOGGER.error("Invalid JWT! " + e);
+			// Whether or not the JWT has expired being one common reason for invalidity
+			if (e.hasExpired()) {
+				try {
+					throw new MsgTokenReaderException("JWT expired at " + e.getJwtContext().getJwtClaims().getExpirationTime());
+				} catch (MalformedClaimException e1) {
+					throw new MsgTokenReaderException("MalformedClaimsException encountered when processing claims expired error!");
+				}
+			}
+			// Or maybe the audience was invalid
+			if (e.hasErrorCode(ErrorCodes.AUDIENCE_INVALID)) {
+				try {
+					throw new MsgTokenReaderException("JWT had wrong audience: " + e.getJwtContext().getJwtClaims().getAudience());
+				} catch (MalformedClaimException e1) {
+					throw new MsgTokenReaderException("MalformedClaimsException encountered when processing wrong audience claim!");
+				}
+			}
+			if (e.hasErrorCode(ErrorCodes.SIGNATURE_INVALID)) {
+				throw new MsgTokenReaderException("JWT signature invalid!");
+			}
+		} catch(Exception e) {
+			throw new MsgTokenReaderException(e);
+		}//filtering of error done at the TCP requestHandler level
+		return rc;
+	}
+	
+	
+	
+	
+	
 	/**
 	 * @param args
 	 

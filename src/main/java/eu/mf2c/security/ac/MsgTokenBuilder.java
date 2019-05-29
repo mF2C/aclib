@@ -27,8 +27,10 @@ import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jwe.ContentEncryptionAlgorithmIdentifiers;
 import org.jose4j.jwe.JsonWebEncryption;
 import org.jose4j.jwe.KeyManagementAlgorithmIdentifiers;
+import org.jose4j.jwk.RsaJsonWebKey;
 import org.jose4j.jws.AlgorithmIdentifiers;
 import org.jose4j.jws.JsonWebSignature;
+import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwx.HeaderParameterNames;
 import org.jose4j.lang.StringUtil;
 import org.jose4j.zip.CompressionAlgorithm;
@@ -40,6 +42,7 @@ import eu.mf2c.security.ac.data.Recipient;
 import eu.mf2c.security.ac.exception.MsgTokenBuilderException;
 import eu.mf2c.security.ac.utility.AgentSingleton;
 import eu.mf2c.security.ac.utility.Security;
+import eu.mf2c.security.ac.utility.Type;
 
 /**
  * Use this to build the appropriate type of message token. 
@@ -49,13 +52,14 @@ import eu.mf2c.security.ac.utility.Security;
  * org Data Science and Technology Group,
  *      UKRI Science and Technology Council
  * Created 8 Mar 2019
- * <p>
  */
 public class MsgTokenBuilder {
 	/** Message logger */
 	protected Logger LOGGER = Logger.getLogger(MsgTokenBuilder.class);
 	/** Security policy for token */
 	protected Security sec = null;
+	/** Token type attribute */
+	protected Type typ = null;
 	/** library version */
 	protected String vers = "1.0";
 	/** payload compression flag, default is false **/
@@ -66,18 +70,6 @@ public class MsgTokenBuilder {
 	protected List<String> recipients = new ArrayList<String>();	
 	/** Credential helpder */
 	protected AgentSingleton helper = AgentSingleton.getInstance();
-	/** types of token
-	enum ttype {
-		//NONE,
-		/** JSON web token 
-		JWT,
-		/** JSON web signature 
-	    JWS,
-	    /** JSON web encryption 
-	    JWE;
-	} */
-	
-	
 	
 	/**
 	 * Default constructor
@@ -122,6 +114,12 @@ public class MsgTokenBuilder {
 		this.sec = sec;		
 		return this;
 	}
+	
+	public MsgTokenBuilder setTyp(Type typ) {
+		//
+		this.typ = typ;		
+		return this;
+	}
 	/**
 	 * Set the payload compression flag
 	 * <p>
@@ -155,16 +153,24 @@ public class MsgTokenBuilder {
 	 * @throws MsgTokenBuilderException if there is an error
 	 */
 	public String build() throws MsgTokenBuilderException {
-		
-		if(this.sec == null) {
-			throw new MsgTokenBuilderException("No security policy defined!");
+		//added typ 22 May 2019
+		if(this.typ == null) {
+			throw new MsgTokenBuilderException("No token type defined!");
 		}
-		if(this.payload == null || this.payload.isEmpty()) {
-			throw new MsgTokenBuilderException("No payload content!");
+		if(this.typ != Type.JWT) {
+			//all tokens except JWT must have security policy and payload
+			if(this.sec == null){
+				throw new MsgTokenBuilderException("No security policy defined!");
+			}
+			if(this.payload == null || this.payload.isEmpty()) {
+				throw new MsgTokenBuilderException("No payload content!");
+			}	
 		}
-		//private messages must have recipients as we need their public keys
-		if(this.sec.ordinal() > 1 && this.recipients.isEmpty() ) {
-			throw new MsgTokenBuilderException("No recipients defined!");
+		//private messages and JWT must have recipients as we need their public keys/dids
+		if(this.recipients.isEmpty()) {
+			if(this.sec.equals(Security.PRIVATE) || this.typ.equals(Type.JWT))  {
+				throw new MsgTokenBuilderException("No recipients defined!");
+			}
 		}
 		//System.out.println("Initialised: " + AgentSingleton.initialised);
 		LOGGER.debug("Is AgentSingleton Initialised: " + AgentSingleton.initialised);
@@ -177,7 +183,21 @@ public class MsgTokenBuilder {
 		}
 		//OK, proceed
 		String tokenString = null;		
-		//determine what to build JWT, JWS, JWE-single/multi recipients
+		//determine what to build JWT, JWS, JWE-single/multi recipients (use typ 22 May 2019)
+		if(this.typ.equals(Type.PLAIN)) {
+			LOGGER.debug("build unsigned JWS.....");
+			tokenString = this.buildPlainToken();	
+		}else if(this.typ.equals(Type.JWS)) {
+			LOGGER.debug("build JWS.....");
+			tokenString = this.buildJWS();
+		}else if(this.typ.equals(Type.JWT)) {
+			LOGGER.debug("build JWT.....");
+			tokenString = this.buildJWT();
+		}else {
+			LOGGER.debug("build JWE for " + this.recipients);
+			 tokenString = this.buildJWE();
+		}
+		/*
 		if(sec.equals(Security.PUBLIC)) {
 			LOGGER.debug("build unsigned JWS.....");
 			tokenString = this.buildPlainToken();	
@@ -187,16 +207,6 @@ public class MsgTokenBuilder {
 		}else {
 			LOGGER.debug("build JWE for " + this.recipients);
 			 tokenString = this.buildJWE();
-		}
-		
-		/**
-		switch(sec.ordinal()) {
-			case 0 : LOGGER.debug("build unsigned JWS.....");
-					tokenString = this.buildPlainToken();			
-			case 1 : LOGGER.debug("build JWS.....");
-					 tokenString = this.buildJWS();
-			case 2 : LOGGER.debug("build JWE for " + this.recipients);
-					 tokenString = this.buildJWE();
 		}*/
 		if(tokenString == null) {
 			throw new MsgTokenBuilderException("Failed to build the token!");
@@ -311,7 +321,7 @@ public class MsgTokenBuilder {
 			LOGGER.debug("tokenstr: \n" + tokenStr);
 			//
 		}catch (Exception e) {
-			System.out.println("Error creating JWS: " + e.getMessage());
+			LOGGER.error("Error creating JWS: " + e.getMessage());
 			throw new MsgTokenBuilderException(e);
 		}		
 		return tokenStr;
@@ -431,6 +441,61 @@ public class MsgTokenBuilder {
 		}
 		return jweString;	
 	}
+	
+	//21May2019 Build IDToken to support agent authentication
+	/**
+	 * Build a signed JWT to assert the Agent&#39;s identity 
+	 * to support inter&#45;Agent communication
+	 * @return	a {@link java.lang.String <em>String</em>} representation of the JWT
+	 * @throws MsgTokenBuilderException	on errors
+	 */
+	public String buildJWT() throws MsgTokenBuilderException {
+		LOGGER.debug("About to  build a signed JWT....");
+		String jwt = null;
+		try {
+			RsaJsonWebKey jwk = AgentSingleton.getInstance().getJwk(); //kid is a random UUID
+
+			// Create the Claims, which will be the content of the JWT
+			JwtClaims claims = new JwtClaims();
+			// These are reserved attributes
+			claims.setIssuer(AgentSingleton.getInstance().getDid()); // who creates the token and signs it
+			claims.setAudience(recipients); // 
+			claims.setExpirationTimeMinutesInTheFuture(10); // time when the token will expire (10 minutes from now)
+			claims.setGeneratedJwtId(); // a unique identifier for the token
+			claims.setIssuedAtToNow(); // when the token was issued/created (now)
+			claims.setNotBeforeMinutesInThePast(2); // time before which the token is not yet valid (2 minutes ago)
+			//System.out.println("about to instantiate JWS!");
+			//
+			// The JWT is a JWS with JSON claims as the payload.
+			JsonWebSignature jws = new JsonWebSignature();
+			// The payload of the JWS is JSON content of the JWT Claims
+			jws.setPayload(claims.toJson());			
+			jws.setHeader("typ", "JOSE"); // compact serialisation, we are not using a nested token
+			jws.setHeader("mf2c-sec", Security.PROTECTED.toString().toLowerCase()); // A JWT is a signed JWS
+			jws.setHeader("mf2c-tmsp", String.valueOf(Instant.now().toEpochMilli()));
+			jws.setHeader("mf2c-sender", AgentSingleton.getInstance().getDid());
+			jws.setHeader("mf2c-aclib", this.vers);
+			//
+			//System.out.println("about to sign JWT!");
+			// The JWT is signed using the private key
+			jws.setKey(jwk.getPrivateKey());
+			// Set the Key ID (kid) header because it's just the polite thing to do.
+			jws.setKeyIdHeaderValue(jwk.getKeyId());
+			// Set the signature algorithm on the JWT/JWS that will integrity protect the
+			// claims
+			jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.RSA_USING_SHA256);
+			// Sign jws
+			jwt = jws.getCompactSerialization();
+			// 
+			LOGGER.debug("JWT String: " + jwt);
+			
+		}catch(Exception e){
+			throw new MsgTokenBuilderException("Failed to build the signed JWT: " + e.getMessage());
+		}		
+		return jwt;
+	}
+	
+	
 	
 
 	/**

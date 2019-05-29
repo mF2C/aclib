@@ -48,7 +48,7 @@ public class ACLibServer {
 	/** port number, default to 46080 */
 	protected int port = 46080;
 	/** IP address, default to 0.0.0.0 */
-	protected String ip = "0.0.0.0";
+	protected String ip = "0.0.0.0"; //to be replaced by a Docker variable
 	/** CAU Client port number, default to 46065 */
 	protected int cau_client_port = 46065;
 
@@ -98,11 +98,6 @@ public class ACLibServer {
 		
 		while (true) {
 			try {
-				// :TODO needs to bootstrap the CAU Client
-				
-				
-				
-
 				// get the connection socket
 				// conn = sSocket.accept();
 				// start a new handler thread to handle the call. It handles closing the client socket

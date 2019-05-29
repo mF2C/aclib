@@ -34,6 +34,7 @@ import eu.mf2c.security.ac.MsgTokenBuilder;
 import eu.mf2c.security.ac.MsgTokenReader;
 import eu.mf2c.security.ac.utility.AgentSingleton;
 import eu.mf2c.security.ac.utility.Security;
+import eu.mf2c.security.ac.utility.Type;
 
 /**
  * Test building and reading signed JWS objects.
@@ -81,14 +82,14 @@ public class SignedJWSTest {
 	//@Ignore
 	@Test
 	public void tesAtBuildingJWS_UC() {
-		LOGGER.info("running testUnsignedJWS_NC....");
+		LOGGER.info("running tesAtBuildingJWS_UC....");
 
 		MsgTokenBuilder mtb = new MsgTokenBuilder();		
 
 		try {
 			// method either throw an exception or return the token string, no need to check
 			//token = mtb.setEnableCompression(false).setSecPolicy(Security.PROTECTED).setRecipients(did).setMsgPayload(message).build();
-			token = mtb.setEnableCompression(false).setSecPolicy(Security.PROTECTED).setMsgPayload(message).build();
+			token = mtb.setTyp(Type.JWS).setEnableCompression(false).setSecPolicy(Security.PROTECTED).setMsgPayload(message).build();
 			LOGGER.debug("Token String :\n" + token);
 			//
 			String[] jwsA = CompactSerializer.deserialize(token);
@@ -120,11 +121,11 @@ public class SignedJWSTest {
 	@Test
 	public void testBReadingJWS_UC() {
 		LOGGER.info("running testReadingJWS_UC....");
-		MsgTokenReader reader = new MsgTokenReader(token);
+		MsgTokenReader reader = new MsgTokenReader(token, Type.valueOf("JWS"));
 		//
 		try {
 			//the getMessage method includes checking signature integrity
-			Assert.assertEquals("The payload is not the same!",message, reader.getMessage());
+			Assert.assertEquals("The payload is not the same!",message, reader.handleToken());
 		}catch (Exception e) {
 			fail("Error test reading a signed JWS w/o compression: " + e.getMessage());
 		}
@@ -140,7 +141,7 @@ public class SignedJWSTest {
 
 		try {
 			// method either throw an exception or return the token string, no need to check
-			token = mtb.setEnableCompression(true).setSecPolicy(Security.PROTECTED).setMsgPayload(message).build();
+			token = mtb.setTyp(Type.JWS).setEnableCompression(true).setSecPolicy(Security.PROTECTED).setMsgPayload(message).build();
 			//
 			JsonWebSignature jws = new JsonWebSignature();
 			jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.RSA_USING_SHA256);
@@ -151,8 +152,8 @@ public class SignedJWSTest {
 			Assert.assertTrue("Compressed payload should be smaller!",jws.getPayload().length() < message.length());
 			//
 			//now read back
-			MsgTokenReader reader = new MsgTokenReader(token);
-			Assert.assertEquals("The payload is not the same!",message, reader.getMessage());			
+			MsgTokenReader reader = new MsgTokenReader(token, Type.valueOf("JWS"));
+			Assert.assertEquals("The payload is not the same!",message, reader.handleToken());			
 			
 		} catch (IllegalArgumentException e) {
 			fail("Illegal Argument: " + e.getMessage());

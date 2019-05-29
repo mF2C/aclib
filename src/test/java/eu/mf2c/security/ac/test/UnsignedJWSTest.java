@@ -35,6 +35,7 @@ import org.junit.runners.MethodSorters;
 import eu.mf2c.security.ac.MsgTokenBuilder;
 import eu.mf2c.security.ac.MsgTokenReader;
 import eu.mf2c.security.ac.utility.Security;
+import eu.mf2c.security.ac.utility.Type;
 
 
 
@@ -98,7 +99,7 @@ public class UnsignedJWSTest {
 		
 		try {
 			//method either throw an exception or return the token string, no need to check
-			token = mtb.setEnableCompression(false).setSecPolicy(Security.PUBLIC).setMsgPayload(message).build();
+			token = mtb.setEnableCompression(false).setSecPolicy(Security.PUBLIC).setMsgPayload(message).setTyp(Type.valueOf("PLAIN")).build();
 			LOGGER.debug("Token string: \n" + token);
 			//
 			String[] jwsA = CompactSerializer.deserialize(token);
@@ -128,10 +129,10 @@ public class UnsignedJWSTest {
 	@Test
 	public void testBUnsignedJWS_NC_READ() {
 		LOGGER.info("running testUnsignedJWS_NC_READ....");
-		MsgTokenReader reader = new MsgTokenReader(token);
+		MsgTokenReader reader = new MsgTokenReader(token, Type.PLAIN);
 		//
 		try {
-			Assert.assertEquals("The payload is not the same!",message, reader.getMessage());
+			Assert.assertEquals("The payload is not the same!",message, reader.handleToken());
 		}catch (Exception e) {
 			fail("Error testing unsigned JWS w/o compression: " + e.getMessage());
 		}
@@ -148,7 +149,7 @@ public class UnsignedJWSTest {
 		//
 		try {
 			//method either throw an exception or return the token string, no need to check
-			token = mtb.setEnableCompression(true).setSecPolicy(Security.PUBLIC).setMsgPayload(message).build();
+			token = mtb.setEnableCompression(true).setSecPolicy(Security.PUBLIC).setMsgPayload(message).setTyp(Type.PLAIN).build();
 			//			
 			JsonWebSignature jws = new JsonWebSignature();
 			jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.NONE);// flag unsecured JWS alg:none
@@ -158,8 +159,8 @@ public class UnsignedJWSTest {
 			Assert.assertEquals("Zip element should be defined!", "DEF", jws.getHeaders().getStringHeaderValue("zip"));
 			Assert.assertTrue("Compressed payload should be smaller!",jws.getPayload().length() < message.length());
 			//now read back
-			MsgTokenReader reader = new MsgTokenReader(token);
-			Assert.assertEquals("The payload is not the same!",message, reader.getMessage());			
+			MsgTokenReader reader = new MsgTokenReader(token, Type.valueOf("PLAIN"));
+			Assert.assertEquals("The payload is not the same!",message, reader.handleToken());			
 			
 		} catch (IllegalArgumentException e) {
 			fail("Illegal Argument: " + e.getMessage());

@@ -40,6 +40,7 @@ import org.junit.runners.MethodSorters;
 import eu.mf2c.security.ac.MsgTokenBuilder;
 import eu.mf2c.security.ac.MsgTokenReader;
 import eu.mf2c.security.ac.utility.Security;
+import eu.mf2c.security.ac.utility.Type;
 
 /**
  * Tests for creating and decrypting a multi&#45;recipient JWE serialised in
@@ -47,7 +48,6 @@ import eu.mf2c.security.ac.utility.Security;
  * <p>
  * author Shirley Crompton email shirley.crompton@stfc.ac.uk org Data Science
  * and Technology Group, UKRI Science and Technology Council Created 25 Mar 2019
- * <p>
  */
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class JsonJWETest {
@@ -99,6 +99,7 @@ public class JsonJWETest {
 
 	/**
 	 * Test building a compact JWE without payload compression
+	 * and validate the claims directly
 	 */
 	@Test
 	public void testABuildingJJWE_UC() {
@@ -109,7 +110,7 @@ public class JsonJWETest {
 		try {
 			// method either throw an exception or return the token string, no need to check
 			token = mtb.setEnableCompression(false).setSecPolicy(Security.PRIVATE).setRecipients(dids)
-					.setMsgPayload(message).build();
+					.setMsgPayload(message).setTyp(Type.valueOf("JWE")).build();
 			//
 			LOGGER.debug("The Json JWE:\n " + token);
 			Map<String, Object> params;
@@ -144,7 +145,7 @@ public class JsonJWETest {
 		try {
 			// method either throw an exception or return the token string, no need to check
 			token = mtb.setEnableCompression(true).setSecPolicy(Security.PRIVATE).setRecipients(dids)
-					.setMsgPayload(message).build();
+					.setMsgPayload(message).setTyp(Type.valueOf("JWE")).build();
 			//
 			Map<String, Object> params;
 			params = JsonUtil.parseJson(token);

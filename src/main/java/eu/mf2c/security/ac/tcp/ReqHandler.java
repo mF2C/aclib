@@ -36,6 +36,7 @@ import eu.mf2c.security.ac.exception.MsgTokenBuilderException;
 import eu.mf2c.security.ac.exception.MsgTokenReaderException;
 import eu.mf2c.security.ac.exception.ReqHandlerException;
 import eu.mf2c.security.ac.utility.Security;
+import eu.mf2c.security.ac.utility.Type;
 
 /**
  * Request handler for servicing a client call.
@@ -48,6 +49,8 @@ public class ReqHandler extends Thread {
 	protected static Logger LOGGER = Logger.getLogger(ReqHandler.class);
 	/** Client socket attribute */
 	public Socket sock;
+	/** request parameters */
+	private Map<String, Object> params = null;
 
 	/**
 	 * Constructor
@@ -95,20 +98,34 @@ public class ReqHandler extends Thread {
 						throw new Exception("Token is null/empty!");
 					}
 				} catch (Exception e) {
+					String msg = e.getMessage();
 					//
-					String errCode = "err3";
+					String errCode = "err4";
 					// System.out.println("Cause :" + e.getCause() + " errMsg: " + e.getMessage());
 					// For compact JWE: ERR1 includes key unwrapping error as JOSE4j generates a
 					// random one if it can't unwrap the key
 					// so we got an tag authen error
-					if (e.getMessage().contains("Token signature is invalid")
-							|| e.getMessage().contains("Authentication tag check failed")) {
+					
+					if (msg.contains("Token signature is invalid")
+							|| msg.contains("Authentication tag check failed")
+							|| msg.contains("JWT had wrong audience")
+							) {
 						errCode = "err1";
 						// for JJWE, my code check if the Agent owner is a recipient, so we get this
 						// error
-					} else if (e.getMessage().contains("Agent is not an intended recipient")) {
+					} else if (msg.contains("Agent is not an intended recipient")) {
 						// we don't have any credential to decrypt the encrypted_key
 						errCode = "err2";
+					} else if(msg.contains("JWT expired at")
+							|| msg.contains("Token is null/empty!")
+							|| msg.contains("No token,") 
+							|| msg.contains("No token typ") 
+							|| msg.contains("No payload,")
+							|| msg.contains("No security policy,")
+							|| msg.contains("No recipients")
+							|| msg.contains("Unknown combination of token type and security policy")
+							) {
+						errCode = "err3";
 					}
 					os.write(StringUtil.getBytesUtf8(errCode));
 					os.flush();
@@ -149,81 +166,120 @@ public class ReqHandler extends Thread {
 	/**
 	 * Parse a token String to get the plaintext payload.
 	 * <p>
-	 * @param token 	the token String
 	 * @return			the plaintext payload
 	 * @throws MsgTokenReaderException	on error extracting the payload
+	 * @throws ReqHandlerException 	on errors
 	 */
-	public String readToken(String token) throws MsgTokenReaderException {
+	public String readToken() throws MsgTokenReaderException, ReqHandlerException {
 		LOGGER.debug("About to read a token.....");
 		//
-		MsgTokenReader reader = new MsgTokenReader(token);
-		return reader.getMessage();
+		String token = (String) this.params.get("token");
+		if(token == null || token.isEmpty()) {
+			throw new ReqHandlerException("No token, cannot continue to parse/validate token !");
+		}
+		String type = (String) this.params.get("typ");
+		if(type == null || type.isEmpty()) {
+			throw new ReqHandlerException("No token type, cannot continue to parse/validate token !");
+		}
+		MsgTokenReader reader = new MsgTokenReader(token, Type.valueOf(type.toUpperCase()));
+		return reader.handleToken();
 	}
 	/**
 	 * Build a token using the passed in arguments
 	 * <p>
-	 * @param m	the client request message
 	 * @return	the token String
 	 * @throws ReqHandlerException		on error processing the request
 	 * @throws MsgTokenBuilderException 	on error building the token
 	 * @throws JoseException 	on error extracting the request arguments
 	 */
-	public String buildToken(String m) throws ReqHandlerException, MsgTokenBuilderException, JoseException {
+	public String buildToken() throws ReqHandlerException, MsgTokenBuilderException, JoseException {
 
 		LOGGER.debug("About to build a token....");
-
-		Map<String, Object> params = parseInput(m);
-		String payload = (String) params.get("payload");
-		if (payload == null || payload.isEmpty()) {
-			throw new ReqHandlerException("No payload, cannot build token !");
+		//		
+		String type = (String) this.params.get("typ");
+		if(type == null || type.isEmpty()) {
+			throw new ReqHandlerException("No token type, cannot token !");
+		}		
+		String payload = (String) this.params.get("payload");
+		String sec = (String) this.params.get("sec");
+		String comp = (String) this.params.get("comp");
+		if(!type.equals("jwt")) {
+			//payload and sec policy mandatory for jws/e
+			if (payload == null || payload.isEmpty()) {
+				throw new ReqHandlerException("No payload, cannot build jwe or jws token !");
+			}
+			if(sec == null || sec.isEmpty()) {
+				throw new ReqHandlerException("No security policy, cannot build jwe or jws token !");
+			}
 		}
-		boolean cFlag = false;
-		if (params.get("comp") != null && params.get("comp").equals("t")) {
+		boolean cFlag = false; //jwt is not compressed
+		if (comp != null && comp.equals("t")) {
 			cFlag = true;
 		}
 		MsgTokenBuilder builder = new MsgTokenBuilder();
-		Security sec = null;
-		if (params.get("sec") != null) {
-			if (params.get("sec").equals("pub")) {
-				LOGGER.debug("Requesting an unsigned JWS....");
-				sec = Security.PUBLIC;
-			} else if (params.get("sec").equals("pro")) {
-				LOGGER.debug("Requesting an JWS....");
-				sec = Security.PROTECTED;
-			} else if (params.get("sec").equals("pri")) {
-				LOGGER.debug("Requesting an JEW....");
-				sec = Security.PRIVATE;
-				if (params.get("recs") != null) {
-					// System.out.println("about to cast recs object to List<String>...");
-					@SuppressWarnings("unchecked")
-					List<String> recs = (List<String>) params.get("recs");
-					// System.out.println("about to cast recs object to String array...");
-					// wouldn't let me do a list.toArray....
-					if (recs != null && recs.size() > 0) {
-						String[] recipients = new String[recs.size()];
-						int i = 0;
-						for (String r : recs) {
-							// System.out.println("putting " + r + " to " + i + " pos");
-							recipients[i] = r;
-							i++;
-						}
-						builder.setRecipients(recipients);
-					} else {
-						throw new ReqHandlerException("failed to extract recipients for private message! Cannot proceed!");
-					}
+		builder.setTyp(Type.valueOf(type.toUpperCase())); //set token type
+		if (type.equals("plain") && sec.equals("pub")) {
+			LOGGER.debug("Requesting an unsigned JWS....");
+			builder.setEnableCompression(cFlag).setMsgPayload(payload).setSecPolicy(Security.PUBLIC);
+		} else if (type.equals("jws") && sec.equals("pro")) {
+			LOGGER.debug("Requesting an JWS....");
+			builder.setEnableCompression(cFlag).setMsgPayload(payload).setSecPolicy(Security.PROTECTED);
+		} else if (type.equals("jwe") && sec.equals("pri")) {
+			LOGGER.debug("Requesting an JWE....");
+			if (this.params.get("recs") != null) {
+				// System.out.println("about to cast recs object to List<String>...");
+				@SuppressWarnings("unchecked")
+				List<String> recs = (List<String>) this.params.get("recs");
+				if (recs != null && recs.size() > 0) {
+					builder.setRecipients(recs.stream().toArray(String[]::new));
 				} else {
-					throw new ReqHandlerException("No recipients for private message! Cannot proceed!");
-				}
-			} else {
-				throw new ReqHandlerException("Unknown security policy!  Cannot proceed...");
+					throw new ReqHandlerException("failed to extract recipients for private message! Cannot proceed!");
+				}				
+				/*
+				@SuppressWarnings("unchecked")
+				List<String> recs = (List<String>) this.params.get("recs");
+				// System.out.println("about to cast recs object to String array...");
+				// wouldn't let me do a list.toArray....
+				if (recs != null && recs.size() > 0) {
+					String[] recipients = new String[recs.size()]; //flatten to a String
+					int i = 0;
+					for (String r : recs) {
+						// System.out.println("putting " + r + " to " + i + " pos");
+						recipients[i] = r;
+						i++;
+					}
+					builder.setRecipients(recipients);
+				} else {
+					throw new ReqHandlerException("failed to extract recipients for private message! Cannot proceed!");
+				}*/
+			}else { //recs is null
+				throw new ReqHandlerException("No recipients for private message! Cannot proceed!");
 			}
+			builder.setEnableCompression(cFlag).setMsgPayload(payload).setSecPolicy(Security.PRIVATE);
+		} else if (type.equals("jwt"))  { 
+			LOGGER.debug("Requesting an JWT.....");
+			if (this.params.get("recs") != null) {
+				// System.out.println("about to cast recs object to List<String>...");
+				@SuppressWarnings("unchecked")
+				List<String> recs = (List<String>) this.params.get("recs");
+				if (recs != null && recs.size() > 0) {
+					builder.setRecipients(recs.stream().toArray(String[]::new));
+				} else {
+					throw new ReqHandlerException("failed to extract recipients for private message! Cannot proceed!");
+				}
+			}else { //recs is null
+				throw new ReqHandlerException("No recipients for private message! Cannot proceed!");
+			}
+			//no security policy or payload for JWT	
+			builder.setEnableCompression(cFlag);
 		} else {
-			throw new ReqHandlerException("No security policy, cannot build token !");
+			throw new ReqHandlerException("Unknown combination of token type and security policy!  Cannot proceed...");
 		}
-		builder = builder.setEnableCompression(cFlag).setMsgPayload(payload).setSecPolicy(sec);
+		//builder = builder.setEnableCompression(cFlag).setMsgPayload(payload).setSecPolicy(secPolicy);
 		//
 		return builder.build();
 	}
+	
 	/**
 	 * Determine if caller is request a token or to get the payload.
 	 * <p>
@@ -235,30 +291,30 @@ public class ReqHandler extends Thread {
 	 * @throws JoseException	on error parsing the Json message String
 	 */
 	public String handleRequest(String message) throws ReqHandlerException, MsgTokenBuilderException, MsgTokenReaderException, JoseException {
-		// here I assume that the caller has guarded for empty or null m!!!!!!
+		// here I assume that the caller has guarded for empty or null !!!!!!
 		// handle the request
-		if (message.contains("payload") && message.contains("sec")) {
-			return buildToken(message);
-		} else {// assumes that it is getPayloadText
-			return readToken(message);
+		this.parseInput(message);
+		if (message.contains("typ") && message.contains("token")) {
+			return readToken();
+		} else {
+			return buildToken();
 		}
 	}
 	/**
 	 * Extract the arguments in a token request.
 	 * <p>
 	 * @param message	the request message String
-	 * @return			a key&#45;value map of the arguments
 	 * @throws JoseException	on error parsing the Json message String
 	 */
-	private Map<String, Object> parseInput(String message) throws JoseException {		
-		Map<String, Object> params = JsonUtil.parseJson(message);
+	private void parseInput(String message) throws JoseException {		
+		this.params = JsonUtil.parseJson(message);
+		this.params.forEach((k,v)->LOGGER.debug(k + " : " + v));
+		/*
 		LOGGER.debug("payload : " + params.get("payload"));
 		LOGGER.debug("recs : " + (params.get("recs") == null ? "null" : params.get("recs")));
 		LOGGER.debug("comp : " + params.get("comp"));
-		LOGGER.debug("sec : " + params.get("sec"));
-		return params;
+		LOGGER.debug("sec : " + params.get("sec"));*/
 	}
-
 	/**
 	 * @param args
 	 

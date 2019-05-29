@@ -16,7 +16,7 @@
 package eu.mf2c.security.ac.exception;
 
 /**
- * Errors associated with the {@link eu.mf2c.security.ac.exception.CauClientException 
+ * Errors associated with the {@link eu.mf2c.security.ac.exception.CCClientException 
  * <em>CauClientException</em>} object.
  * <p>
  * author Shirley Crompton
@@ -25,7 +25,7 @@ package eu.mf2c.security.ac.exception;
  *      UKRI Science and Technology Council
  * Created 27 February 2019
  */
-public class CauClientException extends Exception {
+public class CCClientException extends Exception {
 
 	/**
 	 * unique identifier of this error
@@ -37,7 +37,7 @@ public class CauClientException extends Exception {
 	 * 
 	 * @param message Error message to include
 	 */
-	public CauClientException(String message) {
+	public CCClientException(String message) {
 		super(message);
 	}
 
@@ -48,7 +48,7 @@ public class CauClientException extends Exception {
 	 * @param message error message {@link String}
 	 * @param cause {@link Throwable cause}
 	 */
-	public CauClientException(String message, Throwable cause) {
+	public CCClientException(String message, Throwable cause) {
 		super(message, cause);
 	}
 
@@ -57,7 +57,7 @@ public class CauClientException extends Exception {
 	 * 
 	 * @param cause {@link Throwable} cause
 	 */
-	public CauClientException(Throwable cause) {
+	public CCClientException(Throwable cause) {
 		super(cause);
 	}
 

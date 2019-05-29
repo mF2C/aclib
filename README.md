@@ -1,28 +1,62 @@
-AC Library (version mF2c IT2 demo)
+# AC Library
 
-The library provides utility functions to implement the mF2C data security policy.  The policy defines three different message security levels:
+## Description
+The library provides utility functions to implement the mF2C data security policy and for the processing of identity token.  
 
-1) public - for data not requiring protection
-2) protected - for data which needs to be integrity protected but is not confidential
-3) private - for data which needs both integrity and confidentiality protection.
+The mF2C data security policy defines three different message security levels:
 
-The library uses a consistent data packaging structure to encapsulate messages and supporting metadata.  It leverages existing mF2C PKI and the CAU security middleware to provide credentials for signing and encrypting the message payloads according to the security level specified by caller.  The library adopts the Json Web Signature (JWS - RFC 7515) specification for signing Protected messages and the Json Web Encryption (JWE - RFC 7516) one for encrypting Private confidential messages.  Encrypted message tokens protect data payload confidentiality beyond the communication endpoints (as in TLS) as a recipient needs to use its private key issued by mF2C PKI to decrypt a token's content encryption key before it can successfully retrieve the message payload.  For consistency purposes, the library also provides a method to encapsulate public messages as unsigned JWSs.  Callers may optionally compress the payload to optimise its size.
+*public* - for data not requiring protection
 
-The library is deployed as an Agent block and runs an TCP socket server to listen to calls for creating a message token and extracting message payload from a provided token from other blocks within the same Agent.  (Please see the AC Lib.pdf in the resources folder for a presentation on its features and usages.) The library in turn uses the local CAU-client block as an entry point the the CAU middleware for retrieving senders' and recipients' public keys.
+*protected* - for data which needs to be integrity protected but is not confidential
 
-Use Maven to build a fat jar with all dependencies.  The jar is located in the target folder and the javadoc in the target\site\apidocs folder.
+*private* - for data which needs both integrity and confidentiality protection
 
-The server uses built-in configuration of:
-1) 	aclib server IP = 0.0.0.0
-2)  aclib server port = 46080
-3)  cau-client port = 46065
+The library uses a consistent data packaging structure to encapsulate messages and supporting metadata.  It leverages existing mF2C PKI and the CAU security middleware to provide credentials for signing and encrypting the message payloads according to the security level specified by caller.  The library adopts the Json Web Signature (JWS - [RFC 7515](https://tools.ietf.org/html/rfc7515)) specification for signing Protected messages and the Json Web Encryption (JWE - [RFC 7516](https://tools.ietf.org/html/rfc7516)) one for encrypting Private confidential messages.  Encrypted message tokens protect data payload confidentiality beyond the communication endpoints (as in TLS) as a recipient needs to use its Private Key issued by mF2C PKI to decrypt a token's content encryption key before it can successfully retrieve the message payload.  For consistency purposes, the library also provides a method to encapsulate public messages as unsigned JWSs.  Callers may optionally compress the payload to optimise its size.
 
-You can override all three parameters or just the cau-client port.  The application accepts 0 (using all default values), 1 (overriding cau-client port value) or 3 (overriding all three values) arguments:
+In addition to the above, the library also provides functionalities for creating and verifying Agent self-signed identity Json Web Tokens (JWT - [RFC 7519](https://tools.ietf.org/html/rfc7519)).  An Agent asserts its own identity to another Agent by presenting a JWS with JWT claims in the payload.  The JWS is signed using the issuing Agent's Private Key associated with its mF2C X.509 certificate.  The receiving Agent (audience) can authenticate the claims by validating the signature using the Public Key retrieved from the CAU middleware and comparing the asserted deviceID (claim) against the issuer's deviceID.
 
-		java -jar mf2c-aclib-jar-with-dependencies.jar [ip] [port] [cau-client port]
-		
-Please note that you may use the library to create and read unsigned JWS token for public messages only at the moment.  We need the back end CAU plumbing in place to provide Agent's credentials before we can use it for creating/reading signed JWS and JWE.
+The AC library is deployed as an Agent block and runs an TCP socket server to listen to calls for creating a message/identity token and extracting message payload from/verifying a provided token from other blocks within the same Agent. (Please see the AC Lib.pdf in the resources folder for a presentation on its features and usages.) The library in turn uses the local CAU-client block as an entry point the the CAU middleware for retrieving senders' and recipients' public keys.
 
-Shirley Crompton
-UKRI-STFC
-2 April 2019
+## Building the Java library
+
+The library is packaged with a self-contained fat jar with all depended libraries.  The jar is located in the target folder and the javadoc in the target\site\apidocs folder.  You can use Maven to build a fat jar with all dependencies using:
+
+		clean install javadoc:javadoc -Dmaven.test.skip=true
+
+It is recommended that you select the skip test option as the tests may not run correctly in your own environment. 
+
+
+## Building the Docker container
+
+This project provides a self-contained fat jar with all depended libraries.  It is assumed that you have [Docker](https://docs.docker.com/) installed on your platform.  Build the Docker file to create the image and container for running the AC Lib TCP server.  The Docker file contains default values which you may optionally over-ride to match your deployment environment:
+
+*aclib server IP* - The IP address of the AC Lib TCP server, default value is 0.0.0.0
+  
+*aclib server port* - The port that AC Lib TCP server listens at, default value is 46080
+
+*cau-client port* - the port that the Agent's CAU-Client listens at, default value is 46065.  The CAU-client should run in the same network as the AC Lib as it is just another block of the same Agent.
+
+The Docker file exposes port 46080 on the host for the acLib server port.  If the latter is changed, please also update this parameter.
+
+## Running
+
+You can run the library from the command line
+
+	java -jar mf2c-aclib-jar-with-dependencies.jar [ip] [port] [cau-client port]
+
+You can override all three parameters or just the cau-client port.  The application accepts 0 (using all default values), 1 (overriding cau-client port value) or 3 (over-riding all three values) arguments.
+
+See AC Lib.pdf under the resources folder for more details.
+
+## Contributors
+
+**Contributors to this repository agree to release their code under
+the Apache 2.0 license.**
+
+## License
+
+Copyright by various contributors.  See individual source files for
+copyright information.  
+
+DISTRIBUTED under the [Apache License, Version 2.0 (January
+2004)](http://www.apache.org/licenses/LICENSE-2.0).

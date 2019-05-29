@@ -3,7 +3,7 @@ package eu.mf2c.security.ac.data;
 import org.apache.log4j.Logger;
 import org.jose4j.jwk.JsonWebKey;
 
-import eu.mf2c.security.ac.utility.CauClient;
+import eu.mf2c.security.ac.utility.CCClient;
 
 public class Recipient extends Sender {
 	/** Message logger */

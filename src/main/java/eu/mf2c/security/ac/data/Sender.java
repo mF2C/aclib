@@ -19,7 +19,7 @@ import org.apache.log4j.Logger;
 import org.jose4j.jwk.JsonWebKey;
 
 import eu.mf2c.security.ac.utility.AgentSingleton;
-import eu.mf2c.security.ac.utility.CauClient;
+import eu.mf2c.security.ac.utility.CCClient;
 
 /**
  * Token sender.
@@ -59,7 +59,7 @@ public class Sender {
 	}
 	/**
 	 * Initialise object by getting it&#39;s RSA public key
-	 * using the {@link eu.mf2c.security.ac.utility.CauClient <em>CauClient</em>}
+	 * using the {@link eu.mf2c.security.ac.utility.CCClient <em>CauClient</em>}
 	 * and to derive a Json Web Key from the public key.
 	 * <p>
 	 * @throws IllegalStateException	if failing to get the public key or the JWK
@@ -67,25 +67,17 @@ public class Sender {
 	protected void initialise() throws IllegalStateException {
 		try {
 			//get the public key of the recipient
-			CauClient client = new CauClient();		
-			//:TODO this method returns null at the moment
+			CCClient client = new CCClient();	
 			if(this.did.equals(AgentSingleton.getInstance().getDid())) {
 				this.jwk = AgentSingleton.getInstance().getJwk();
 			}else {
 				this.jwk = client.getTargetJWK(did);
+				
+				//
 				if(this.jwk == null) {
 					throw new IllegalStateException("Failed to get RSA JWK for Agent(" + this.did + "), cannot proceed..." );
 				}
-				this.jwk.setKeyId(this.did);
-				/*
-				this.pubKey = client.getTargetPubKey(this.did);
-				if(this.pubKey == null) {
-					throw new IllegalStateException("Failed to get public key for Agent(" + this.did + "), cannot proceed..." );
-				}
-				//wrap the public key into JWK, this is used to encrypt the generated symmetric (CEK) key
-				//128 bits key size is sufficient for most use cases
-				this.jwk = JsonWebKey.Factory.newJwk(pubKey);
-				this.jwk.setKeyId(this.did);*/
+				this.jwk.setKeyId(this.did);				
 			}
 		}catch(Exception e) {
 			throw new IllegalStateException("Failed to initialise class: " + e.getMessage());
