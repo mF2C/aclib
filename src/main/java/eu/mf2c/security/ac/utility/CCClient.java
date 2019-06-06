@@ -105,7 +105,7 @@ public class CCClient {
     	String keyPEM = null;
     	//prepare message
     	Map<String, Object> request = new HashMap<String, Object>();
-		request.put("did", did);
+		request.put("getpubkey", did);
 		String msg = request + "\n"; //needs CR for EOF signal
 		try {
 			//connect to cau-client

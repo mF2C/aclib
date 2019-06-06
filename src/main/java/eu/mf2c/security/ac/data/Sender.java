@@ -71,8 +71,7 @@ public class Sender {
 			if(this.did.equals(AgentSingleton.getInstance().getDid())) {
 				this.jwk = AgentSingleton.getInstance().getJwk();
 			}else {
-				this.jwk = client.getTargetJWK(did);
-				
+				this.jwk = client.getTargetJWK(did); //ccclient converts the pem to jwk				
 				//
 				if(this.jwk == null) {
 					throw new IllegalStateException("Failed to get RSA JWK for Agent(" + this.did + "), cannot proceed..." );
