@@ -103,10 +103,10 @@ public class CCClient {
 	 */ 
     public String getPublicKey(String did) throws CCClientException {
     	String keyPEM = null;
-    	//prepare message
-    	Map<String, Object> request = new HashMap<String, Object>();
-		request.put("getpubkey", did);
-		String msg = request + "\n"; //needs CR for EOF signal
+    	//prepare message (updated 6June19)
+    	//Map<String, Object> request = new HashMap<String, Object>();
+		//request.put("getpubkey", did);    	
+		String msg = "getpubkey=" + did + "\n"; //needs CR for EOF signal
 		try {
 			//connect to cau-client
 			if(!this.isConnected) {    		  	
@@ -115,7 +115,7 @@ public class CCClient {
 			out = this.socket.getOutputStream(); //for writing message
 			in = new BufferedInputStream(this.socket.getInputStream()); // for reading response
 			//			
-			out.write(msg.getBytes());
+			out.write(msg.getBytes(StandardCharsets.UTF_8));
 			out.flush();
 			// wait for response, should be the token
 			LOGGER.debug("waiting for cau-client response....");
