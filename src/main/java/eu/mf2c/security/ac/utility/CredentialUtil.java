@@ -40,7 +40,6 @@ import java.util.UUID;
 import org.apache.log4j.Logger;
 import org.jose4j.base64url.Base64;
 import org.jose4j.base64url.SimplePEMEncoder;
-import org.jose4j.jwk.JsonWebKey;
 import org.jose4j.jwk.PublicJsonWebKey;
 import org.jose4j.jwk.RsaJsonWebKey;
 import org.jose4j.jwk.Use;
@@ -79,7 +78,7 @@ public class CredentialUtil {
 			LOGGER.debug("about to decode pcks1 String....");
 			byte[] pkcs1b = Base64.decode(pkcs1);
 			RSAPrivateCrtKeySpec keyspec = getRSAKeySpec(pkcs1b);
-			System.out.println("\nabout to geerate private key : " + keyspec.getPublicExponent());
+			System.out.println("\nabout to generate private key : " + keyspec.getPublicExponent());
 			pk = factory.generatePrivate(keyspec);
 		} catch (InvalidKeySpecException | NoSuchAlgorithmException | IOException ke) {
 
@@ -113,7 +112,7 @@ public class CredentialUtil {
 			//System.out.println("format: " + key.getFormat());
 			//System.out.println("algorithm: " + key.getAlgorithm());
 		} catch (InvalidKeySpecException | NoSuchAlgorithmException  ke) {
-			System.out.println("Error reading PKCS8 private key from PEM file! " + ke.getMessage());
+			//System.out.println("Error reading PKCS8 private key from PEM file! " + ke.getMessage());
 			LOGGER.error("Error reading PKCS8 private key from PEM file! " + ke.getMessage());
 		}
 		return pk;
