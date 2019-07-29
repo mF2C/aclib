@@ -31,17 +31,13 @@ import java.security.SecureRandom;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 import org.apache.log4j.Logger;
 import org.jose4j.base64url.Base64;
-import org.jose4j.json.JsonUtil;
 import org.jose4j.jwk.PublicJsonWebKey;
 import org.jose4j.jwk.RsaJsonWebKey;
 import org.jose4j.lang.JoseException;
-import org.jose4j.lang.StringUtil;
 
 import eu.mf2c.security.ac.exception.CCClientException;
 
@@ -68,9 +64,11 @@ public class CCClient {
 	
 	/**
 	 * Construct an instance 
+	 * @param cauClientPort	port number for the local cau&#45;client
 	 */
-	public CCClient() {
-		//default constructor
+	public CCClient(int cauClientPort) {
+		
+		this.cau_client_port = cauClientPort;
 	}
 	/**
 	 * Construct an instance with the specified port number for the CAU Client
@@ -102,6 +100,7 @@ public class CCClient {
 	 * @throws CCClientException 	on error
 	 */ 
     public String getPublicKey(String did) throws CCClientException {
+    	LOGGER.debug("getPublicKey called for " + did);
     	String keyPEM = null;
     	//prepare message (updated 6June19)
     	//Map<String, Object> request = new HashMap<String, Object>();
@@ -252,5 +251,18 @@ public class CCClient {
 		return null;
 		
 	}
+	/*
+	public static void main(String[] args) {
+		//
+		CCClient test = new CCClient();
+		try {
+			test.getTargetJWK("c6968d75a7df20e2d2f81f87fe69bf0b7dd14f4a22cca5f15ffc645cb4d45944bfdc7a7a970a9e13a331161e304a3094d8e6e362e88bd7df0d7b5473b6d2aa80");
+		} catch (CCClientException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}*/
+	
 	
 }

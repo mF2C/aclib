@@ -33,10 +33,10 @@ RUN mkdir /var/app/calib
 RUN mkdir /pkidata
 VOLUME /pkidata
 # copy jar to working lib
-ADD target/mf2c-aclib-jar-with-dependencies.jar /var/app/calib/mf2c-aclib-jar-with-dependencies.jar
+ADD target/mf2c-aclib-jar-with-dependencies.jar /var/app/calib/mf2c-aclib.jar
 WORKDIR /var/app/calib
 # Default port used for CA-LIB
 EXPOSE 46080
 #run the application
-CMD exec java -jar mf2c-aclib-jar-with-dependencies.jar ${CALIB_IP} ${CALIB_PORT} ${CAUCLIENT_PORT}
+CMD exec java -jar mf2c-aclib.jar ${CALIB_PORT} ${CAUCLIENT_PORT}
 

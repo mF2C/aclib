@@ -65,7 +65,10 @@ public class CompactJWETest {
 	public static String sender = "0f848d8fb78cbe5615507ef5a198f660ac89a3ae03b95e79d4ebfb3466c20d54e9a5d9b9c41f88c782d1f67b32231d31b4fada8d2f9dd31a4d884681b784ec5a";
 	// get a random 128-bit long String as the recipient device id
 	/** recipient device id */
-	public static String did = UUID.randomUUID().toString();
+	//public static String did = UUID.randomUUID().toString();
+	//using real device id that cau has a public key for
+	public static String did = "a123456789df20e2d2f81f87fe69bf0b7dd14f4a22cca5f15ffc645cb4d45944bfdc7a7a970a9e13a331161e304a3094d8e6e362e88bd7df0d7b5473b6d2aa80";
+	
 	/**
 	 * Set up before test class
 	 * @throws java.lang.Exception

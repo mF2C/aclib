@@ -162,6 +162,7 @@ public class ReqHandler extends Thread {
 				LOGGER.error("Error trying to close client connection!");
 			}
 		}
+		return; //fix hanging after error 29July19
 	}
 	/**
 	 * Parse a token String to get the plaintext payload.

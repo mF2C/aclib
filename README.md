@@ -21,7 +21,7 @@ The AC library is deployed as an Agent block and runs an TCP socket server to li
 
 The library is packaged with a self-contained fat jar with all depended libraries.  The jar is located in the target folder and the javadoc in the target\site\apidocs folder.  You can use Maven to build a fat jar with all dependencies using:
 
-		clean install javadoc:javadoc -Dmaven.test.skip=true
+		package javadoc:javadoc -Dmaven.test.skip=true
 
 It is recommended that you select the skip test option as the tests may not run correctly in your own environment. 
 
@@ -29,8 +29,6 @@ It is recommended that you select the skip test option as the tests may not run 
 ## Building the Docker container
 
 This project provides a self-contained fat jar with all depended libraries.  It is assumed that you have [Docker](https://docs.docker.com/) installed on your platform.  Build the Docker file to create the image and container for running the AC Lib TCP server.  The Docker file contains default values which you may optionally over-ride to match your deployment environment:
-
-*aclib server IP* - The IP address of the AC Lib TCP server, default value is 0.0.0.0
   
 *aclib server port* - The port that AC Lib TCP server listens at, default value is 46080
 
@@ -42,9 +40,9 @@ The Docker file exposes port 46080 on the host for the acLib server port.  If th
 
 You can run the library from the command line
 
-	java -jar mf2c-aclib-jar-with-dependencies.jar [ip] [port] [cau-client port]
+	java -jar mf2c-aclib-jar-with-dependencies.jar [port] [cau-client port]
 
-You can override all three parameters or just the cau-client port.  The application accepts 0 (using all default values), 1 (overriding cau-client port value) or 3 (over-riding all three values) arguments.
+You can override all two parameters or just the cau-client port.  The application accepts 0 (using all default values), 1 (overriding cau-client port value) or 2 (over-riding all two values) arguments.
 
 See AC Lib.pdf under the resources folder for more details.
 

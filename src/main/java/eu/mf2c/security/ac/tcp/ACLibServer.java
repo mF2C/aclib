@@ -15,14 +15,9 @@
  */
 package eu.mf2c.security.ac.tcp;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.HashMap;
 
 import org.apache.log4j.Logger;
 
@@ -50,7 +45,7 @@ public class ACLibServer {
 	/** IP address, default to 0.0.0.0 */
 	protected String ip = "0.0.0.0"; //to be replaced by a Docker variable
 	/** CAU Client port number, default to 46065 */
-	protected int cau_client_port = 46065;
+	public static int cau_client_port = 46065;
 
 	/**
 	 * Constructor
@@ -68,11 +63,11 @@ public class ACLibServer {
 		} else if (params.length == 1) {
 			LOGGER.debug("one argument, assuming it is the CAU-client port...");
 			this.cau_client_port = Integer.valueOf(args[0]);
-		} else if (params.length == 3) {
-			LOGGER.debug("three argument...");
-			this.ip = args[0];
-			this.port = Integer.valueOf(args[1]);
-			this.cau_client_port = Integer.valueOf(args[2]);
+		} else if (params.length == 2) {
+			LOGGER.debug("two argument...");
+			//this.ip = args[0];
+			this.port = Integer.valueOf(args[0]);
+			this.cau_client_port = Integer.valueOf(args[1]);
 		}
 	}
 	/**
@@ -132,15 +127,17 @@ public class ACLibServer {
 	}
 
 	/**
-	 * Entry point to the application. The
+	 * Entry point to the application. The application accepts
+	 * 0 to 2 arguments.
 	 * <p>
 	 * 
 	 * @param args
-	 *            the IP and port number to run the server on
+	 *            optional port numbers for the local CAU client and this application
 	 */
 	public static void main(String[] args) {
 		ACLibServer server = null;
-		if (args.length == 3 || args.length == 1 || args.length == 0) {
+		//if (args.length == 3 || args.length == 1 || args.length == 0) {
+		if(args.length < 3 && args.length >=0) { //29July19 don't need server IP
 			server = new ACLibServer(args);
 			try {
 				server.configServer();
@@ -150,7 +147,7 @@ public class ACLibServer {
 			}
 		} else {
 			throw new RuntimeException(
-					"Usage: [ServerIP] [port] [CAU-Client port]\nEither provide the arguments or none to use the default setting!");
+					"Usage: [port] [CAU-Client port]\nEither provide the arguments or none to use the default setting!");
 		}
 	}
 }

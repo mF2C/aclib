@@ -18,6 +18,7 @@ package eu.mf2c.security.ac.data;
 import org.apache.log4j.Logger;
 import org.jose4j.jwk.JsonWebKey;
 
+import eu.mf2c.security.ac.tcp.ACLibServer;
 import eu.mf2c.security.ac.utility.AgentSingleton;
 import eu.mf2c.security.ac.utility.CCClient;
 
@@ -61,13 +62,13 @@ public class Sender {
 	 * Initialise object by getting it&#39;s RSA public key
 	 * using the {@link eu.mf2c.security.ac.utility.CCClient <em>CauClient</em>}
 	 * and to derive a Json Web Key from the public key.
-	 * <p>
+	 * <p> 
 	 * @throws IllegalStateException	if failing to get the public key or the JWK
 	 */
 	protected void initialise() throws IllegalStateException {
 		try {
 			//get the public key of the recipient
-			CCClient client = new CCClient();	
+			CCClient client = new CCClient(ACLibServer.cau_client_port);	
 			if(this.did.equals(AgentSingleton.getInstance().getDid())) {
 				this.jwk = AgentSingleton.getInstance().getJwk();
 			}else {

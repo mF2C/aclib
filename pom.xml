@@ -117,6 +117,7 @@
 									<mainClass>eu.mf2c.security.ac.tcp.ACLibServer</mainClass>
 								</manifest>
 							</archive>
+							<outputDirectory>${project.basedir}</outputDirectory>
 						</configuration>
 					</execution>
 				</executions>
