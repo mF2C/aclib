@@ -22,21 +22,21 @@ LABEL author="Shirley Crompton" \
       eu.mf2c-project.version.is-production="false" 
 #
 # IP for the CA Lib TCP server
-ENV CALIB_IP="127.0.0.1"
+#ENV CALIB_IP="127.0.0.1"
 # Port number for the CA Lib TCP server
 ENV CALIB_PORT="46080"
 # Port number for the local CAU-Client
-ENV CAUCLIENT_PORT= "46065"
+ENV CAUCLIENT_PORT="46065"
 # create working folder
 RUN mkdir /var/app/calib
 #for sharing owner Agent's certificate and key 
 RUN mkdir /pkidata
 VOLUME /pkidata
 # copy jar to working lib
-ADD target/mf2c-aclib-jar-with-dependencies.jar /var/app/calib/mf2c-aclib.jar
+ADD mf2c-aclib-jar-with-dependencies.jar /var/app/calib/mf2c-aclib.jar
 WORKDIR /var/app/calib
 # Default port used for CA-LIB
-EXPOSE 46080
+EXPOSE ${CALIB_PORT}
 #run the application
 CMD exec java -jar mf2c-aclib.jar ${CALIB_PORT} ${CAUCLIENT_PORT}
 
