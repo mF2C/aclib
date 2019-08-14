@@ -58,8 +58,13 @@ public class CCClient {
 	protected int cau_client_port = 46065; //default
 	/** socket */
 	private Socket socket; //client socket
+	/** cau&#45;client host name attribute */
+	private String host = "cau-client";
+	/** connection flag */
 	private boolean isConnected = false;
+	/** TCP client output stream object **/
 	private OutputStream out = null; // write to server
+	/** TCP client input stream object **/
 	private BufferedInputStream in = null; //read from server
 	
 	/**
@@ -88,7 +93,8 @@ public class CCClient {
 	 * @throws IOException on connection error
 	 */
 	public void startConnection() throws IOException {
-	        this.socket = new Socket(InetAddress.getLoopbackAddress(), cau_client_port); //CAU-client is on the same network
+	    //this.socket = new Socket(InetAddress.getLoopbackAddress(), cau_client_port); //not using docker network
+		this.socket = new Socket(host, cau_client_port); //agent cloud context using docker service name
 	        this.isConnected = true;
 	    }
 	/**
